@@ -35,7 +35,7 @@ public class Plugin : BaseUnityPlugin
     public static string ModPath { get; } = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
     public static EquipmentType SynthesizerModule = EnumHandler.AddEntry<EquipmentType>("SynthesizerModule");
-    public static CraftTree.Type CompressorModule = EnumHandler.AddEntry<CraftTree.Type>("Compressor");
+    public static CraftTree.Type MatrixCompressor = EnumHandler.AddEntry<CraftTree.Type>("MatrixCompressor");
     
     private void Awake()
     {
