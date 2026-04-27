@@ -84,7 +84,7 @@ public abstract class MatrixAuthor
             .WithIcon(iconSprite);
         
         CustomPrefab prefab = new(Info);
-        prefab.SetEquipment(Plugin.SynthesizerModule);
+        prefab.SetEquipment(Plugin.SynthesizerEquipment);
         SetupRecipe(prefab);
         SetupObj(prefab);
         prefab.Register();
@@ -114,13 +114,16 @@ public abstract class MatrixAuthor
     
     private void SetupRecipe(CustomPrefab prefab)
     {
+        //CraftTreeHandler.AddCraftingNode(Plugin.CompressorCraftType, Info.TechType);
+        
         RecipeData recipe = new RecipeData
         {
             craftAmount = 1,
-            Ingredients = new List<Ingredient>() { new Ingredient(Resource, CraftAmount) }
+            Ingredients = new List<Ingredient>() { new Ingredient(Resource, 2) }
         };
         prefab.SetRecipe(recipe)
-            .WithFabricatorType(Plugin.MatrixCompressor)
+            .WithFabricatorType(Plugin.CompressorCraftType)
+            .WithStepsToFabricatorTab()
             .WithCraftingTime(5);
     }
 }
