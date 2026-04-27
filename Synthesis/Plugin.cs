@@ -34,6 +34,9 @@ public class Plugin : BaseUnityPlugin
     public static ModOptions ModConfig { get; } = OptionsPanelHandler.RegisterModOptions<ModOptions>();
     public static string ModPath { get; } = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
+    public static EquipmentType SynthesizerModule = EnumHandler.AddEntry<EquipmentType>("SynthesizerModule");
+    public static CraftTree.Type CompressorModule = EnumHandler.AddEntry<CraftTree.Type>("Compressor");
+    
     private void Awake()
     {
         Logger = base.Logger;
@@ -42,6 +45,7 @@ public class Plugin : BaseUnityPlugin
         Logger.LogInfo($"Plugin {PluginGuid} is loaded!");
 
         //FixSpawnables();
+        MatrixAuthoring.Register();
     }
 
     
@@ -63,13 +67,13 @@ public class Plugin : BaseUnityPlugin
             TechType.DrillableLead,
             TechType.DrillableLithium,
             TechType.DrillableMagnetite,
-            TechType.DrillableMercury,
+            TechType.DrillableMercury, //nope
             TechType.DrillableNickel,
-            TechType.PrecursorIonCrystal,
+            TechType.PrecursorIonCrystal, //nope
             TechType.DrillableQuartz,
             TechType.DrillableSalt,
             TechType.DrillableSilver,
-            TechType.DrillableSulphur, // n/a 697beac5-e39a-4809-854d-9163da9f997e7WorldEntities/Natural/drillable/DrillableSulphur.prefab
+            TechType.DrillableSulphur, // n/a
             TechType.DrillableTitanium,
             TechType.DrillableUranium,
         };
