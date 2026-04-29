@@ -34,9 +34,6 @@ public class Plugin : BaseUnityPlugin
     public static ModOptions ModConfig { get; } = OptionsPanelHandler.RegisterModOptions<ModOptions>();
     public static string ModPath { get; } = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-    public static EquipmentType SynthesizerEquipment = EnumHandler.AddEntry<EquipmentType>("SynthesizerModule");
-    public static CraftTree.Type CompressorCraftType = EnumHandler.AddEntry<CraftTree.Type>("Compressor");
-    
     private void Awake()
     {
         Logger = base.Logger;
@@ -47,6 +44,7 @@ public class Plugin : BaseUnityPlugin
         //FixSpawnables();
         CompressorAuthoring.Register();
         MatrixAuthoring.Register();
+        SynthesizerAuthoring.Register();
     }
 
     

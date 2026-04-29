@@ -17,7 +17,7 @@ public static class MatrixAuthoring
     public static AssetBundle ModelBundle; 
     public static AssetBundle UiBundle;
 
-    private static List<MatrixAuthor> Authors;
+    public static List<MatrixAuthor> Authors;
 
     public static void Register()
     {
@@ -84,21 +84,26 @@ public abstract class MatrixAuthor
             .WithIcon(iconSprite);
         
         CustomPrefab prefab = new(Info);
-        prefab.SetEquipment(Plugin.SynthesizerEquipment);
-        SetupRecipe(prefab);
-        SetupObj(prefab);
+
+        prefab.SetUnlock(Resource);
+        prefab.SetEquipment(SynthesizerAuthoring.SynthesizerEquipment);
+        
+        prefab.SetRecipe(new RecipeData(new Ingredient(TechType.PrecursorIonCrystal, 1), new Ingredient(Resource, CraftAmount)))
+            .WithFabricatorType(CompressorAuthoring.CompressorCraftType)
+            .WithStepsToFabricatorTab()
+            .WithCraftingTime(5);
+        
+        prefab.SetGameObject(SetupObj());
         prefab.Register();
     }
 
-    private void SetupObj(CustomPrefab prefab)
+    private PrefabTemplate SetupObj()
     {
         CloneTemplate cloneTemplate = new(Info, TechType.VehicleHullModule1)
         {
             ModifyPrefabAsync = DoModifyPrefabAsync
         };
-
-        prefab.SetGameObject(cloneTemplate);
-        return;
+        return cloneTemplate;
 
         IEnumerator DoModifyPrefabAsync(GameObject obj)
         {
@@ -110,21 +115,6 @@ public abstract class MatrixAuthor
             
             yield break;
         }
-    }
-    
-    private void SetupRecipe(CustomPrefab prefab)
-    {
-        //CraftTreeHandler.AddCraftingNode(Plugin.CompressorCraftType, Info.TechType);
-        
-        RecipeData recipe = new RecipeData
-        {
-            craftAmount = 1,
-            Ingredients = new List<Ingredient>() { new Ingredient(Resource, 2) }
-        };
-        prefab.SetRecipe(recipe)
-            .WithFabricatorType(Plugin.CompressorCraftType)
-            .WithStepsToFabricatorTab()
-            .WithCraftingTime(5);
     }
 }
 

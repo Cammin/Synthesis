@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Nautilus.Assets;
 using Nautilus.Assets.Gadgets;
 using Nautilus.Assets.PrefabTemplates;
@@ -14,6 +15,7 @@ namespace Synthesis;
 public static class CompressorAuthoring
 {
     public static PrefabInfo Info { get; private set; }
+    public static CraftTree.Type CompressorCraftType;
     
     public static void Register()
     {
@@ -21,20 +23,23 @@ public static class CompressorAuthoring
         
         CustomPrefab prefab = new(Info);
 
+        RecipeData recipe = Recipe();
+
         prefab
-            .SetUnlock(TechType.PlasteelIngot)
-            .WithCompoundTechsForUnlock(new List<TechType> { TechType.AdvancedWiringKit, TechType.Magnetite })
+            .SetUnlock(TechType.PrecursorIonCrystal)
+            .WithCompoundTechsForUnlock(recipe.Ingredients.Select(p => p._techType).ToList())
             .WithPdaGroupCategoryAfter(TechGroup.InteriorModules, TechCategory.InteriorModule, TechType.Workbench);
-        
-        prefab.SetRecipe(Recipe());
+
+        prefab.CreateFabricator(out CompressorCraftType);
+        prefab.SetRecipe(recipe);
         prefab.SetGameObject(SetupObj());
         prefab.Register();
     }
 
     private static PrefabTemplate SetupObj()
     {
-        FabricatorTemplate template = new FabricatorTemplate(Info, Plugin.CompressorCraftType);
-        template.ConstructableFlags = ConstructableFlags.Inside | ConstructableFlags.Wall;
+        FabricatorTemplate template = new FabricatorTemplate(Info, CompressorCraftType);
+        template.ConstructableFlags = ConstructableFlags.Inside | ConstructableFlags.Wall | ConstructableFlags.Submarine;
         template.FabricatorModel = FabricatorTemplate.Model.Fabricator;
         template.ColorTint = new Color(1f, 0.5f, 0.5f);
         template.ModifyPrefabAsync = DoModifyPrefabAsync;
@@ -42,12 +47,6 @@ public static class CompressorAuthoring
 
         IEnumerator DoModifyPrefabAsync(GameObject obj)
         {
-            /*GhostCrafter fabricator = obj.GetComponent<GhostCrafter>();
-            Compressor compressor = obj.AddComponent<Compressor>();
-            compressor.CopyComponent(fabricator);
-            Object.DestroyImmediate(fabricator);*/
-            
-            //var constructable = PrefabUtils.AddConstructable(obj, Info.TechType, ConstructableFlags.Base | ConstructableFlags.Inside | ConstructableFlags.Ground);
             yield break;
         }
     }
@@ -59,9 +58,9 @@ public static class CompressorAuthoring
             craftAmount = 1,
             Ingredients = new List<Ingredient>()
             {
-                new Ingredient(TechType.PlasteelIngot, 1),
-                new Ingredient(TechType.AdvancedWiringKit, 1),
-                new Ingredient(TechType.Magnetite, 2)
+                new Ingredient(TechType.Titanium, 1),
+                new Ingredient(TechType.CopperWire, 1),
+                new Ingredient(TechType.Lead, 5)
             }
         };
     }
