@@ -139,7 +139,7 @@ public class MatrixAuthorAluminumOxide : MatrixAuthor
     public override TechType Resource => TechType.AluminumOxide;
     public override TechType Drillable => TechType.DrillableAluminiumOxide;
     public override int CraftAmount => 100;
-    public override float ShaderYMax => 4.25f;
+    public override float ShaderYMax => 4.5f;
 }
 public class MatrixAuthorCopper : MatrixAuthor
 {
@@ -155,7 +155,7 @@ public class MatrixAuthorDiamond : MatrixAuthor
     public override TechType Resource => TechType.Diamond;
     public override TechType Drillable => TechType.DrillableDiamond;
     public override int CraftAmount => 100;
-    public override float ShaderYMax => 4.25f;
+    public override float ShaderYMax => 4.5f;
 }
 public class MatrixAuthorGold : MatrixAuthor
 {
@@ -163,7 +163,7 @@ public class MatrixAuthorGold : MatrixAuthor
     public override TechType Resource => TechType.Gold;
     public override TechType Drillable => TechType.DrillableGold;
     public override int CraftAmount => 100;
-    public override float ShaderYMax => 4.5f;
+    public override float ShaderYMax => 5f;
 }
 public class MatrixAuthorKyanite : MatrixAuthor
 {
@@ -187,7 +187,7 @@ public class MatrixAuthorLithium : MatrixAuthor
     public override TechType Resource => TechType.Lithium;
     public override TechType Drillable => TechType.DrillableLithium;
     public override int CraftAmount => 100;
-    public override float ShaderYMax => 4.25f;
+    public override float ShaderYMax => 4.75f;
 }
 public class MatrixAuthorMagnetite : MatrixAuthor
 {
@@ -203,7 +203,7 @@ public class MatrixAuthorNickel : MatrixAuthor
     public override TechType Resource => TechType.Nickel;
     public override TechType Drillable => TechType.DrillableNickel;
     public override int CraftAmount => 100;
-    public override float ShaderYMax => 4.25f;
+    public override float ShaderYMax => 4.5f;
 }
 public class MatrixAuthorQuartz : MatrixAuthor
 {
@@ -243,7 +243,7 @@ public class MatrixAuthorTitanium : MatrixAuthor
     public override TechType Resource => TechType.Titanium;
     public override TechType Drillable => TechType.DrillableTitanium;
     public override int CraftAmount => 100;
-    public override float ShaderYMax => 4.25f;
+    public override float ShaderYMax => 4.5f;
 }
 public class MatrixAuthorUraninite : MatrixAuthor
 {
