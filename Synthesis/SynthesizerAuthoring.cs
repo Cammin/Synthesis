@@ -14,14 +14,20 @@ namespace Synthesis;
 
 public static class SynthesizerAuthoring
 {
-    public static PrefabInfo Info { get; private set; }
-    
-    public static readonly EquipmentType SynthesizerEquipmentType = EnumHandler.AddEntry<EquipmentType>("SynthesizerModule");
+    public const string EquipmentTypeName = "SynthesizerModule";
+    public const string EquipmentSlot1Name = "SynthesizerModule1";
     
     public const string StorageRootName = "SynthesizerStorageRoot";
     
+    public static PrefabInfo Info { get; private set; }
+
+    public static readonly EquipmentType SynthesizerEquipmentType = EnumHandler.AddEntry<EquipmentType>(EquipmentTypeName);
+    
+    
     public static void Register()
     {
+        Equipment.slotMapping.Add(EquipmentSlot1Name, SynthesizerEquipmentType);
+        
         Info = PrefabInfo.WithTechType("Synthesizer");
         
         CustomPrefab prefab = new(Info);
@@ -89,9 +95,11 @@ public static class SynthesizerAuthoring
         
         foreach (MatrixAuthor matrix in MatrixAuthoring.Authors)
         {
-            IPrefabRequest drillableHandle = PrefabDatabase.GetPrefabAsync(matrix.Drillable.ToString());
+            var drillableHandle = CraftData.GetPrefabForTechTypeAsync(matrix.Drillable);
             yield return drillableHandle;
-            if (!drillableHandle.TryGetPrefab(out var drillableObj))
+
+            var drillableObj = drillableHandle.GetResult();
+            if (!drillableObj)
             {
                 Plugin.Logger.LogError($"SynthesizerAuthoring: Failed loading the drillable {matrix.Drillable}");
                 yield break;
@@ -100,7 +108,9 @@ public static class SynthesizerAuthoring
             //make new instance copy to keep in this prefab
             drillableObj = Object.Instantiate(drillableObj, prefab.transform);
             drillableObj.SetActive(false);
-
+            
+            
+            
             Drillable drillable = drillableObj.GetComponent<Drillable>();
             drillable.deleteWhenDrilled = false;
 

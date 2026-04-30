@@ -69,7 +69,6 @@ public abstract class MatrixAuthor
     public abstract TechType Drillable { get; }
     public abstract int CraftAmount { get; }
     
-    
     public void Register(SpriteAtlas atlas)
     {
         Sprite iconSprite = atlas.GetSprite($"Icon_Matrix_{Resource}");

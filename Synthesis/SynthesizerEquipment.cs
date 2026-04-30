@@ -10,9 +10,9 @@ namespace Synthesis;
 /// Responsible for only handling the equipment. 
 /// </summary>
 [ProtoContract]
-public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTreeEventListener 
+public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTreeEventListener
 {
-    private const string SlotId = "SynthesizerMatrix";
+    private const string SlotId = SynthesizerAuthoring.EquipmentSlot1Name;
     
     [NonSerialized]
     [ProtoMember(1, OverwriteList = true)]
