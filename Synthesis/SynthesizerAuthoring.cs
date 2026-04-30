@@ -28,7 +28,8 @@ public static class SynthesizerAuthoring
     {
         Equipment.slotMapping.Add(EquipmentSlot1Name, SynthesizerEquipmentType);
         
-        Info = PrefabInfo.WithTechType("Synthesizer");
+        Info = PrefabInfo.WithTechType("Synthesizer")
+            .WithIcon(null);
         
         CustomPrefab prefab = new(Info);
 
@@ -108,6 +109,7 @@ public static class SynthesizerAuthoring
             //make new instance copy to keep in this prefab
             drillableObj = Object.Instantiate(drillableObj, prefab.transform);
             drillableObj.SetActive(false);
+            drillableObj.transform.localPosition = Vector3.up * 0.3f;
             
             
             
@@ -126,6 +128,7 @@ public static class SynthesizerAuthoring
         render._EmissiveTex = anteChamber._EmissiveTex;
         
         GameObject sfxLoopCopy = Object.Instantiate(anteChamberObj.transform.Find("scannerTr").gameObject, prefab.transform);
+        sfxLoopCopy.transform.localPosition = Vector3.zero;
         var sfx = prefab.AddComponent<SynthesizerAudio>();
         sfx.sfxLocation = sfxLoopCopy.transform;
         sfx.sfxLoop = sfxLoopCopy.GetComponent<FMOD_CustomLoopingEmitter>();

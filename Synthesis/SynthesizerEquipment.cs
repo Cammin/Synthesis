@@ -21,8 +21,8 @@ public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTr
     private ChildObjectIdentifier _storageRoot;
     private Equipment _equipment;
 
-    public bool HasMatrix => _equipment.GetItemInSlot(SlotId) != null;
-    public Matrix Matrix => _equipment.GetItemInSlot(SlotId)?.item.GetComponent<Matrix>();
+    //public bool HasMatrix => _equipment.GetItemInSlot(SlotId) != null;
+    public Matrix Matrix { get; private set; }// => _equipment.GetItemInSlot(SlotId)?.item.GetComponent<Matrix>();
 
     public void OnAwake(Equipment.OnEquip onEquip, Equipment.OnUnequip onUnequip, IsAllowedToRemove isAllowedToRemove)
     {
@@ -32,6 +32,8 @@ public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTr
         _equipment = new Equipment(gameObject, _storageRoot.transform);
         _equipment.SetLabel(ModLocalization.SynthesizerStorageLabel);
         _equipment.AddSlot(SlotId);
+        _equipment.onEquip += (_, item) => Matrix = item.item.GetComponent<Matrix>();
+        _equipment.onUnequip += (_, item) => Matrix = null;
         _equipment.onEquip += onEquip;
         _equipment.onUnequip += onUnequip;
         _equipment.isAllowedToRemove += isAllowedToRemove;

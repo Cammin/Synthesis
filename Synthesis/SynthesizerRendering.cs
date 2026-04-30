@@ -11,7 +11,9 @@ namespace Synthesis;
 public class SynthesizerRendering : MonoBehaviour
 {
     public Texture2D _EmissiveTex;
-    
+
+    private float _yMin;
+    private float _yMax;
     private List<Renderer> _renderers;
     private List<Material> _materials;
     private MaterialPropertyBlock _block;
@@ -26,9 +28,12 @@ public class SynthesizerRendering : MonoBehaviour
         TryDestroyMaterials();
     }
 
-    public void CacheNew(Component obj)
+    public void CacheNew(Component obj, float yMin, float yMax)
     {
-        TryDestroyMaterials();
+        _yMin = yMin;
+        _yMax = yMax;
+        
+        //TryDestroyMaterials();
 
         _renderers = new List<Renderer>(obj.GetComponentsInChildren<Renderer>());
         _materials = new List<Material>();
@@ -54,8 +59,8 @@ public class SynthesizerRendering : MonoBehaviour
     
     public void UpdateDrillableVisuals(Vector3 pos, float progress)
     {
-        float min = pos.y - 0.5f;
-        float max = pos.y + 2.5f;
+        float min = pos.y + _yMin;
+        float max = pos.y + _yMax;
 		
         foreach (Renderer renderer in _renderers)
         {

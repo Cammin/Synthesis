@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Synthesis;
 
 [ProtoContract]
-public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
+public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 {
 	[NonSerialized]
 	[ProtoMember(1)]
@@ -47,7 +47,7 @@ public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 			return;
 		}
 		
-		_drillableHandle.SetDrillable(matrix.Drillable, OnCompletelyDrilled);
+		_drillableHandle.SetDrillable(matrix, OnCompletelyDrilled);
 
 		if (isSynthesizing)
 		{
@@ -71,7 +71,7 @@ public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 
 		Plugin.Logger.LogInfo($"OnMatrixAdded {item.techType} => {newMatrix.Resource} {newMatrix.Drillable}");
 		
-		_drillableHandle.SetDrillable(newMatrix.Drillable, OnCompletelyDrilled);
+		_drillableHandle.SetDrillable(newMatrix, OnCompletelyDrilled);
 		BeginSynthesis(0);
 	}
 	private void OnMatrixRemoved(string slot, InventoryItem item)
@@ -98,6 +98,9 @@ public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 	
 	public void OnSynthesisBegin()
 	{
+		//if the synthesis was interrupted
+		if (!isSynthesizing) return;
+		
 		_drillableHandle.RestoreDrillable();
 		_drillableHandle.SetDrillableMinable(false);
 		
@@ -109,11 +112,18 @@ public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 
 	private void UpdateDrillableProgress()
 	{
+		if (isSynthesizing && _equipmentHandle.Matrix == null)
+		{
+			Plugin.Logger.LogError("UpdateDrillableProgress Matrix is null!");
+			return;
+		}
+		
 		float progress = 1f;
 		if (isSynthesizing)
 		{
+			float duration = _equipmentHandle.Matrix.SynthesisDuration;
 			float timePassed = DayNightCycle.main.timePassedAsFloat - timeBegin;
-			progress = Mathf.Clamp01(timePassed / 5);
+			progress = Mathf.Clamp01(timePassed / duration);
 		}
 		
 		_drillableHandle.UpdateDrillableVisuals(progress);
@@ -148,10 +158,10 @@ public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 		//removing the matrix clears the drillable.
 		//block removing the matrix if there is a completed drillable on the pedestal.
 		//so there's no disappointment if the matrix is removed.
-		if (!isSynthesizing)
+		//if (!isSynthesizing)
 		{
-			ErrorMessage.AddMessage(Language.main.Get(ModLocalization.SynthesizerEquipmentCantRemove));
-			return false;
+			//ErrorMessage.AddMessage(Language.main.Get(ModLocalization.SynthesizerEquipmentCantRemove));
+			//return false;
 		}
 		return true;
 	}
@@ -163,7 +173,7 @@ public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 
 	public bool CanDeconstruct(out string reason)
 	{
-		if (_equipmentHandle.HasMatrix)
+		if (_equipmentHandle.Matrix != null)
 		{
 			reason = Language.main.Get(ModLocalization.SynthesizerDeconstructNotEmptyError);
 			return false;
@@ -171,7 +181,16 @@ public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 		reason = null;
 		return true;
 	}
-	
+
+	public void OnConstructedChanged(bool constructed)
+	{
+		//remove the drillable upon attempting a deconstruct
+		/*if (!constructed)
+		{
+			_drillableHandle.ClearDrillable(OnCompletelyDrilled);
+		}*/
+	}
+
 	//via GenericHandTrigger
 	[UsedImplicitly]
 	public void OnHandHover(HandTargetEventData eventData)

@@ -36,8 +36,9 @@ public class SynthesizerDrillableHandler : MonoBehaviour
     /// Setting one will enable it.
     /// Setting a different one will disable the old one.
     /// </summary>
-    public void SetDrillable(TechType drillableType, Drillable.OnDrilled sub)
+    public void SetDrillable(Matrix matrix, Drillable.OnDrilled sub)
     {
+        TechType drillableType = matrix.Drillable;
         if (!_drillablesDict.TryGetValue(drillableType, out Drillable newDrillable))
         {
             Plugin.Logger.LogError($"Tried SetDrillable {drillableType} but it's not a drillable type");
@@ -65,7 +66,7 @@ public class SynthesizerDrillableHandler : MonoBehaviour
         _drillable.gameObject.SetActive(true);
         _drillable.onDrilled += sub;
         
-        _render.CacheNew(_drillable);
+        _render.CacheNew(_drillable, matrix.ShaderYMin, matrix.ShaderYMax);
         UpdateDrillableVisuals(0);
     }
 
@@ -73,7 +74,7 @@ public class SynthesizerDrillableHandler : MonoBehaviour
     {
         if (!_drillable)
         {
-            Plugin.Logger.LogError("Tried clearing drillable when it is already cleared");
+            Plugin.Logger.LogWarning("Tried clearing drillable when it is already cleared");
             return;
         }
         RestoreDrillable();
@@ -86,7 +87,7 @@ public class SynthesizerDrillableHandler : MonoBehaviour
     {
         if (!_drillable)
         {
-            Plugin.Logger.LogError("Tried RestoreDrillable when we have none");
+            Plugin.Logger.LogWarning("Tried RestoreDrillable when we have none");
             return;
         }
         _drillable.Restore();
