@@ -67,9 +67,11 @@ public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 	// Will also potentially call when loading proto, which is useful
 	private void OnMatrixAdded(string slot, InventoryItem item)
 	{
-		Plugin.Logger.LogInfo($"OnMatrixAdded {item.techType}");
+		Matrix newMatrix = _equipmentHandle.Matrix;
+
+		Plugin.Logger.LogInfo($"OnMatrixAdded {item.techType} => {newMatrix.Resource} {newMatrix.Drillable}");
 		
-		_drillableHandle.SetDrillable(item.techType, OnCompletelyDrilled);
+		_drillableHandle.SetDrillable(newMatrix.Drillable, OnCompletelyDrilled);
 		BeginSynthesis(0);
 	}
 	private void OnMatrixRemoved(string slot, InventoryItem item)

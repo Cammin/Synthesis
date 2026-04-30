@@ -59,6 +59,17 @@ public static class MatrixAuthoring
             CraftData.AddToInventory(author.Info.TechType);
         }
     }
+    
+    public static TechType ResourceToDrillable(TechType resource)
+    {
+        MatrixAuthor author = Authors.FirstOrDefault(p => p.Resource == resource);
+        if (author == null)
+        {
+            Plugin.Logger.LogError($"ResourceToDrillable failed to find resource {resource}");
+            return TechType.None;
+        }
+        return author.Drillable;
+    }
 }
 
 public abstract class MatrixAuthor

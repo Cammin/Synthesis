@@ -18,10 +18,16 @@ public class SynthesizerDrillableHandler : MonoBehaviour
         _render = GetComponent<SynthesizerRendering>();
         
         var drillables = GetComponentsInChildren<Drillable>(true);
+        
         _drillablesDict = new Dictionary<TechType, Drillable>(drillables.Length);
-        foreach (Drillable element in drillables)
+        foreach (Drillable drillable in drillables)
         {
-            _drillablesDict.Add(element.GetDominantResourceType(), element);
+            var resource = drillable.GetDominantResourceType();
+            var drillableType = MatrixAuthoring.ResourceToDrillable(resource);
+            
+            if (drillableType == TechType.None) continue;
+            
+            _drillablesDict.Add(drillableType, drillable);
         }
     }
 
@@ -30,17 +36,17 @@ public class SynthesizerDrillableHandler : MonoBehaviour
     /// Setting one will enable it.
     /// Setting a different one will disable the old one.
     /// </summary>
-    public void SetDrillable(TechType type, Drillable.OnDrilled sub)
+    public void SetDrillable(TechType drillableType, Drillable.OnDrilled sub)
     {
-        if (!_drillablesDict.TryGetValue(type, out Drillable newDrillable))
+        if (!_drillablesDict.TryGetValue(drillableType, out Drillable newDrillable))
         {
-            Plugin.Logger.LogError($"Tried SetDrillable {type} but it's not a drillable");
+            Plugin.Logger.LogError($"Tried SetDrillable {drillableType} but it's not a drillable type");
             return;
         }
 
         if (!newDrillable)
         {
-            Plugin.Logger.LogError($"Tried SetNewDrillable {type} but the drillable was null!");
+            Plugin.Logger.LogError($"Tried SetDrillable {drillableType} but the drillable was null!");
             return;
         }
         
@@ -48,15 +54,15 @@ public class SynthesizerDrillableHandler : MonoBehaviour
         {
             if (_drillable == newDrillable)
             {
-                Plugin.Logger.LogError($"Tried SetNewDrillable {type} but it's the same one as before!");
+                Plugin.Logger.LogError($"Tried SetDrillable {drillableType} but it's the same one as before!");
                 return;
             }
             
             ClearDrillable(sub);
         }
         
-        _drillable.gameObject.SetActive(true);
         _drillable = newDrillable;
+        _drillable.gameObject.SetActive(true);
         _drillable.onDrilled += sub;
         
         _render.CacheNew(_drillable);
@@ -103,6 +109,18 @@ public class SynthesizerDrillableHandler : MonoBehaviour
     
     public void UpdateDrillableVisuals(float progress)
     {
+        if (!_drillable)
+        {
+            Plugin.Logger.LogError("Tried UpdateDrillableVisuals but drillable is currently null!");
+            return;
+        }
+
+        if (!_render)
+        {
+            Plugin.Logger.LogError("Tried UpdateDrillableVisuals but render is currently null!");
+            return;
+        }
+        
         _render.UpdateDrillableVisuals(_drillable.transform.position, progress);
     }
 }
