@@ -86,7 +86,7 @@ public abstract class MatrixAuthor
         CustomPrefab prefab = new(Info);
 
         prefab.SetUnlock(Resource);
-        prefab.SetEquipment(SynthesizerAuthoring.SynthesizerEquipment);
+        prefab.SetEquipment(SynthesizerAuthoring.SynthesizerEquipmentType);
         
         prefab.SetRecipe(new RecipeData(new Ingredient(TechType.PrecursorIonCrystal, 1), new Ingredient(Resource, CraftAmount)))
             .WithFabricatorType(CompressorAuthoring.CompressorCraftType)

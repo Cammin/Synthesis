@@ -12,13 +12,13 @@ public class SynthesizerRendering : MonoBehaviour
 {
     public Texture2D _EmissiveTex;
     
-    private List<Renderer> renderers;
-    private List<Material> materials;
-    private MaterialPropertyBlock block;
+    private List<Renderer> _renderers;
+    private List<Material> _materials;
+    private MaterialPropertyBlock _block;
 
     private void Awake()
     {
-        block = new MaterialPropertyBlock();
+        _block = new MaterialPropertyBlock();
     }
     
     private void OnDestroy()
@@ -30,12 +30,12 @@ public class SynthesizerRendering : MonoBehaviour
     {
         TryDestroyMaterials();
 
-        renderers = new List<Renderer>(obj.GetComponentsInChildren<Renderer>());
-        materials = new List<Material>();
-        foreach (Renderer renderer in renderers)
+        _renderers = new List<Renderer>(obj.GetComponentsInChildren<Renderer>());
+        _materials = new List<Material>();
+        foreach (Renderer renderer in _renderers)
         {
             var mats = renderer.materials;
-            materials.AddRange(mats);
+            _materials.AddRange(mats);
             
             foreach (Material mat in mats)
             {
@@ -50,7 +50,6 @@ public class SynthesizerRendering : MonoBehaviour
                 mat.SetFloat(ShaderPropertyID._MyCullVariable, 0f);
             }
         }
-        UpdateDrillableVisuals(obj.transform.position, 0);
     }
     
     public void UpdateDrillableVisuals(Vector3 pos, float progress)
@@ -58,24 +57,24 @@ public class SynthesizerRendering : MonoBehaviour
         float min = pos.y - 0.5f;
         float max = pos.y + 2.5f;
 		
-        foreach (Renderer renderer in renderers)
+        foreach (Renderer renderer in _renderers)
         {
-            renderer.GetPropertyBlock(block);
-            block.SetFloat(ShaderPropertyID._Built, progress);
-            block.SetFloat(ShaderPropertyID._minYpos, min);
-            block.SetFloat(ShaderPropertyID._maxYpos, max);
-            renderer.SetPropertyBlock(block);
+            renderer.GetPropertyBlock(_block);
+            _block.SetFloat(ShaderPropertyID._Built, progress);
+            _block.SetFloat(ShaderPropertyID._minYpos, min);
+            _block.SetFloat(ShaderPropertyID._maxYpos, max);
+            renderer.SetPropertyBlock(_block);
         }
     }
 
     private void TryDestroyMaterials()
     {
-        if (materials == null) return;
+        if (_materials == null) return;
         
-        foreach (Material material in materials)
+        foreach (Material material in _materials)
         {
             Destroy(material);
         }
-        materials.Clear();
+        _materials.Clear();
     }
 }

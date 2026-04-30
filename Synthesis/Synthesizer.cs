@@ -1,18 +1,17 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Numerics;
+using JetBrains.Annotations;
 using ProtoBuf;
 using UnityEngine;
-using Vector4 = UnityEngine.Vector4;
 
 namespace Synthesis;
 
 [ProtoContract]
 public class Synthesizer : MonoBehaviour, IObstacle
 {
+	public SynthesizerDrillableHandler DrillableHandle;
+	public SynthesizerEquipment EquipmentHandle;
+	public SynthesizerAudio Sfx;
+	
 	[NonSerialized]
 	[ProtoMember(2)]
 	public float timeBegin = -1f;
@@ -20,35 +19,37 @@ public class Synthesizer : MonoBehaviour, IObstacle
 	[NonSerialized]
 	[ProtoMember(3)]
 	public bool isSynthesizing;
-	
-	public SynthesizerAudio sfx;
-	public SynthesizerRendering Render;
-	public SynthesizerEquipment _equip;
-	public SynthesizerDrillableHandler drillableHandler;
+
+	private void Awake()
+	{
+		EquipmentHandle.OnAwake(OnMatrixAdded, OnMatrixRemoved, IsAllowedToRemove);
+	}
 	
 	private void Start()
 	{
+		//3 possible scenarios:
+		//- no drillable:		!isSynthesizing && !HasMatrix	return!
+		//- being made:			 isSynthesizing && HasMatrix	Set drillable! set minable NO! Set Sfx loop
+		//- drillable exists:	!isSynthesizing && HasMatrix	Set drillable! set minable YES! (it is already like this, so no need to set) 
 		
-		_equip.Sub(OnMatrixAdded, OnMatrixRemoved);
+		Matrix matrix = EquipmentHandle.Matrix;
+		if (!matrix)
+		{
+			//there's no possible scenario where we should be synthesizing and also having no matrix
+			if (isSynthesizing)
+			{
+				Plugin.Logger.LogInfo($"Panic!!! We are synthesizing and also having no matrix!");
+			}
+			return;
+		}
 		
-		
-		if (!isSynthesizing) return;
+		DrillableHandle.SetDrillable(matrix.Drillable, OnCompletelyDrilled);
 
-		Matrix matrix = _equip.Matrix;
-
-		drillableHandler.SetDrillable(matrix.Drillable, OnCompletelyDrilled);
-		drillableHandler.SetMinable(false);
-		
-		sfx.PlayLoop();
-	}
-	
-	private void OnMatrixAdded(string slot, InventoryItem item)
-	{
-		Plugin.Logger.LogInfo("OnMatrixAdded");
-	}
-	private void OnMatrixRemoved(string slot, InventoryItem item)
-	{
-		Plugin.Logger.LogInfo("OnMatrixRemoved");
+		if (isSynthesizing)
+		{
+			DrillableHandle.SetDrillableMinable(false);
+			Sfx.PlayLoop();
+		}
 	}
 
 	private void Update()
@@ -59,24 +60,45 @@ public class Synthesizer : MonoBehaviour, IObstacle
 		}
 	}
 	
+	// Will also potentially call when loading proto, which is useful
+	private void OnMatrixAdded(string slot, InventoryItem item)
+	{
+		Plugin.Logger.LogInfo($"OnMatrixAdded {item.techType}");
+		
+		DrillableHandle.SetDrillable(item.techType, OnCompletelyDrilled);
+		BeginSynthesis(0);
+	}
+	private void OnMatrixRemoved(string slot, InventoryItem item)
+	{
+		Plugin.Logger.LogInfo($"OnMatrixRemoved {item.techType}");
+		
+		DrillableHandle.ClearDrillable(OnCompletelyDrilled);
+		OnSynthesisInterrupted();
+	}
+	
 	public void OnCompletelyDrilled(Drillable drillable)
 	{
-		const float timeBeforeMakingNewOne = 5f;
+		BeginSynthesis(5);
+	}
+
+	private void BeginSynthesis(float delay)
+	{
+		if (isSynthesizing) return;
 		
-		timeBegin = DayNightCycle.main.timePassedAsFloat + timeBeforeMakingNewOne;
 		isSynthesizing = true;
-		Invoke(nameof(OnSynthesisBegin), timeBeforeMakingNewOne);
+		timeBegin = DayNightCycle.main.timePassedAsFloat + delay;
+		Invoke(nameof(OnSynthesisBegin), delay);
 	}
 	
 	public void OnSynthesisBegin()
 	{
-		drillableHandler.RestoreDrillable();
-		drillableHandler.SetMinable(false);
+		DrillableHandle.RestoreDrillable();
+		DrillableHandle.SetDrillableMinable(false);
 		
 		UpdateDrillableProgress();
 		
-		sfx.PlayStart();
-		sfx.PlayLoop();
+		Sfx.PlayStart();
+		Sfx.PlayLoop();
 	}
 
 	private void UpdateDrillableProgress()
@@ -88,7 +110,7 @@ public class Synthesizer : MonoBehaviour, IObstacle
 			progress = Mathf.Clamp01(timePassed / 5);
 		}
 		
-		drillableHandler.UpdateDrillableVisuals(progress);
+		DrillableHandle.UpdateDrillableVisuals(progress);
 		
 		if (isSynthesizing && progress >= 1f)
 		{
@@ -99,12 +121,33 @@ public class Synthesizer : MonoBehaviour, IObstacle
 	public void OnSynthesisComplete()
 	{
 		isSynthesizing = false;
-		drillableHandler.SetMinable(true);
+		DrillableHandle.SetDrillableMinable(true);
 		
 		UpdateDrillableProgress();
 		
-		sfx.StopLoop();
-		sfx.PlayEnd();
+		Sfx.StopLoop();
+		Sfx.PlayEnd();
+	}
+	
+	public void OnSynthesisInterrupted()
+	{
+		isSynthesizing = false;
+		
+		Sfx.StopLoop();
+		Sfx.PlayEnd();
+	}
+	
+	private bool IsAllowedToRemove(Pickupable pickupable, bool verbose)
+	{
+		//removing the matrix clears the drillable.
+		//block removing the matrix if there is a completed drillable on the pedestal.
+		//so there's no disappointment if the matrix is removed.
+		if (!isSynthesizing)
+		{
+			ErrorMessage.AddMessage(Language.main.Get(ModLocalization.SynthesizerEquipmentCantRemove));
+			return false;
+		}
+		return true;
 	}
 	
 	public bool IsDeconstructionObstacle()
@@ -114,12 +157,37 @@ public class Synthesizer : MonoBehaviour, IObstacle
 
 	public bool CanDeconstruct(out string reason)
 	{
-		if (_equip.HasMatrix)
+		if (EquipmentHandle.HasMatrix)
 		{
 			reason = Language.main.Get(ModLocalization.SynthesizerDeconstructNotEmptyError);
 			return false;
 		}
 		reason = null;
 		return true;
+	}
+	
+	//via GenericHandTrigger
+	[UsedImplicitly]
+	public void OnHandHover(HandTargetEventData eventData)
+	{
+		if (!enabled) return;
+		
+		HandReticle main = HandReticle.main;
+		main.SetIcon(HandReticle.IconType.Hand);
+		main.SetText(HandReticle.TextType.Hand, ModLocalization.SynthesizerOpenStorage, translate: true, GameInput.Button.LeftHand);
+		main.SetText(HandReticle.TextType.HandSubscript, string.Empty, translate: false);
+	}
+
+	//via GenericHandTrigger
+	[UsedImplicitly]
+	public void OnHandClick(HandTargetEventData eventData)
+	{
+		if (!enabled) return;
+
+		PDA pda = Player.main.GetPDA();
+		if (pda.isInUse) return;
+        
+		EquipmentHandle.SetUsedStorage();
+		pda.Open(PDATab.Inventory, transform);
 	}
 }

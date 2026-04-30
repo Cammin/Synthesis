@@ -10,89 +10,90 @@ namespace Synthesis;
 public class SynthesizerDrillableHandler : MonoBehaviour
 {
     public SynthesizerRendering Render;
-    public List<Drillable> drillables;
+    public List<Drillable> Drillables;
     
-    private Dictionary<TechType, Drillable> drillablesDict;
-    private Drillable drillable;
+    private Dictionary<TechType, Drillable> _drillablesDict;
+    private Drillable _drillable;
 
     private void Awake()
     {
-        drillablesDict = new Dictionary<TechType, Drillable>(drillables.Count);
-        foreach (Drillable element in drillables)
+        _drillablesDict = new Dictionary<TechType, Drillable>(Drillables.Count);
+        foreach (Drillable element in Drillables)
         {
-            drillablesDict.Add(element.GetDominantResourceType(), element);
+            _drillablesDict.Add(element.GetDominantResourceType(), element);
         }
     }
 
     /// <summary>
-    /// Activate the desired drillable, sub it. unsub the old one.
+    /// Initially, all drillables are inactive.
+    /// Setting one will enable it.
+    /// Setting a different one will disable the old one.
     /// </summary>
     public void SetDrillable(TechType type, Drillable.OnDrilled sub)
     {
-        SetActiveDrillable(type);
-        SetNewDrillable(drillablesDict[type], sub);
-    }
-
-    public void SetActiveDrillable(TechType type)
-    {
-        foreach (KeyValuePair<TechType, Drillable> pair in drillablesDict)
+        if (!_drillablesDict.TryGetValue(type, out Drillable newDrillable))
         {
-            drillablesDict[pair.Key].gameObject.SetActive(pair.Key == type);
-        }
-    }
-	
-    private void SetNewDrillable(Drillable newDrillable, Drillable.OnDrilled sub)
-    {
-        if (drillable == newDrillable)
-        {
-            Plugin.Logger.LogError("Tried SetNewDrillable but its the same one!");
+            Plugin.Logger.LogError($"Tried SetDrillable {type} but it's not a drillable");
             return;
         }
-		
-        if (drillable)
+
+        if (!newDrillable)
         {
+            Plugin.Logger.LogError($"Tried SetNewDrillable {type} but the drillable was null!");
+            return;
+        }
+        
+        if (_drillable)
+        {
+            if (_drillable == newDrillable)
+            {
+                Plugin.Logger.LogError($"Tried SetNewDrillable {type} but it's the same one as before!");
+                return;
+            }
+            
             ClearDrillable(sub);
         }
-		
-        if (!newDrillable) return;
-
-        drillable = newDrillable;
-        drillable.onDrilled += sub;
         
-        Render.CacheNew(drillable);
+        _drillable.gameObject.SetActive(true);
+        _drillable = newDrillable;
+        _drillable.onDrilled += sub;
+        
+        Render.CacheNew(_drillable);
+        UpdateDrillableVisuals(0);
     }
 
     public void ClearDrillable(Drillable.OnDrilled unsubThis)
     {
-        if (!drillable)
+        if (!_drillable)
         {
             Plugin.Logger.LogError("Tried clearing drillable when it is already cleared");
             return;
         }
-        drillable.onDrilled -= unsubThis;
-        drillable.gameObject.SetActive(false);
-        drillable = null;
+        RestoreDrillable();
+        _drillable.onDrilled -= unsubThis;
+        _drillable.gameObject.SetActive(false);
+        _drillable = null;
     }
 
     public void RestoreDrillable()
     {
-        if (!drillable)
+        if (!_drillable)
         {
-            Plugin.Logger.LogError("Tried restoring drillable when we have none");
+            Plugin.Logger.LogError("Tried RestoreDrillable when we have none");
             return;
         }
-        drillable.Restore();
+        _drillable.Restore();
     }
     
-    public void SetMinable(bool enable)
+    public void SetDrillableMinable(bool enable)
     {
-        if (drillable == null)
+        if (_drillable == null)
         {
             Plugin.Logger.LogError("Tried SetMineable but drillable is currently null!");
             return;
         }
         //We'd turn off colliders so it may fully show itself, but is not interactable yet
-        Collider[] colliders = drillable.GetComponentsInChildren<Collider>();
+        Collider[] colliders = _drillable.GetComponentsInChildren<Collider>();
         for (int i = 0; i < colliders.Length; i++)
         {
             colliders[i].enabled = enable;
@@ -101,6 +102,6 @@ public class SynthesizerDrillableHandler : MonoBehaviour
     
     public void UpdateDrillableVisuals(float progress)
     {
-        Render.UpdateDrillableVisuals(drillable.transform.position, progress);
+        Render.UpdateDrillableVisuals(_drillable.transform.position, progress);
     }
 }

@@ -16,7 +16,7 @@ public static class SynthesizerAuthoring
 {
     public static PrefabInfo Info { get; private set; }
     
-    public static readonly EquipmentType SynthesizerEquipment = EnumHandler.AddEntry<EquipmentType>("SynthesizerModule");
+    public static readonly EquipmentType SynthesizerEquipmentType = EnumHandler.AddEntry<EquipmentType>("SynthesizerModule");
     
     public static void Register()
     {
@@ -71,65 +71,60 @@ public static class SynthesizerAuthoring
         GameObject storageRoot = new GameObject("StorageRoot");
         storageRoot.transform.SetParent(prefab.transform, false);
         
-        ChildObjectIdentifier storageId = storageRoot.AddComponent<ChildObjectIdentifier>();
-        storageId.ClassId = "SynthesizerStorage";
-        
-        //StorageContainer storage = PrefabUtils.AddStorageContainer(prefab, "StorageRoot", "SynthesizerMatrixStorage", 1, 1, true);
-        //todo: add localization strings here
-        //storage.storageLabel = "SynthesizerStorage";
-        //storage.hoverText = "SynthesizerHover";
-        
         Synthesizer synthesizer = prefab.AddComponent<Synthesizer>();
-        synthesizer.storageRoot = storageId;
-        synthesizer.Render = prefab.AddComponent<SynthesizerRendering>();
-        synthesizer.sfx = prefab.AddComponent<SynthesizerAudio>();
+        synthesizer.DrillableHandle = prefab.AddComponent<SynthesizerDrillableHandler>();
+        synthesizer.EquipmentHandle = prefab.AddComponent<SynthesizerEquipment>();
+        synthesizer.Sfx = prefab.AddComponent<SynthesizerAudio>();
+        synthesizer.DrillableHandle.Render = prefab.AddComponent<SynthesizerRendering>();
+        
+        synthesizer.EquipmentHandle.StorageRoot = storageRoot.AddComponent<ChildObjectIdentifier>();
+        synthesizer.EquipmentHandle.StorageRoot.ClassId = "SynthesizerStorage";
         
         //Add the sound assets!
         IPrefabRequest anteChamberHandle = PrefabDatabase.GetPrefabForFilenameAsync("WorldEntities/Doodads/Precursor/Precursor_Prison_Interior_Antechamber.prefab");
         yield return anteChamberHandle;
-        if (anteChamberHandle.TryGetPrefab(out var anteChamberObj))
+        if (!anteChamberHandle.TryGetPrefab(out var anteChamberObj))
         {
-            AnteChamber anteChamber = anteChamberObj.GetComponent<AnteChamber>();
-
-            synthesizer.Render._EmissiveTex = anteChamber._EmissiveTex;
-            
-            synthesizer.sfx.sfxStart = anteChamber.scanSequenceBeginSound;
-            synthesizer.sfx.sfxEnd = anteChamber.scanSequenceEndSound;
-
-            GameObject loopCopy = Object.Instantiate(anteChamberObj.transform.Find("scannerTr").gameObject, prefab.transform);
-            synthesizer.sfx.sfxLocation = loopCopy.transform;
-            synthesizer.sfx.sfxLoop = loopCopy.GetComponent<FMOD_CustomLoopingEmitter>();
+            Plugin.Logger.LogError($"SynthesizerAuthoring: Failed loading the anteChamber");
+            yield break;
         }
-        else
-        {
-            Plugin.Logger.LogError($"Failed loading the anteChamber");
-        }
+
+        AnteChamber anteChamber = anteChamberObj.GetComponent<AnteChamber>();
+
+        synthesizer.DrillableHandle.Render._EmissiveTex = anteChamber._EmissiveTex;
+        
+        GameObject loopCopy = Object.Instantiate(anteChamberObj.transform.Find("scannerTr").gameObject, prefab.transform);
+        synthesizer.Sfx.sfxLocation = loopCopy.transform;
+        synthesizer.Sfx.sfxLoop = loopCopy.GetComponent<FMOD_CustomLoopingEmitter>();
+        synthesizer.Sfx.sfxStart = anteChamber.scanSequenceBeginSound;
+        synthesizer.Sfx.sfxEnd = anteChamber.scanSequenceEndSound;
 
         //the synthesizer stores one of each drillable inside of it.
         //chose to do it this way because interacting with the save system in the way where 
+        synthesizer.DrillableHandle.Drillables = new List<Drillable>(MatrixAuthoring.Authors.Count);
         foreach (MatrixAuthor matrix in MatrixAuthoring.Authors)
         {
             IPrefabRequest drillableHandle = PrefabDatabase.GetPrefabAsync(matrix.Drillable.ToString());
             yield return drillableHandle;
-            if (anteChamberHandle.TryGetPrefab(out var drillableObj))
+            if (!anteChamberHandle.TryGetPrefab(out var drillableObj))
             {
-                //make new instance copy to keep
-                drillableObj = Object.Instantiate(drillableObj, prefab.transform);
+                Plugin.Logger.LogError($"SynthesizerAuthoring: Failed loading the drillable {matrix.Drillable}");
+                yield break;
+            }
 
-                Drillable drillable = drillableObj.GetComponent<Drillable>();
-                drillable.deleteWhenDrilled = false;
-                
-                Object.Destroy(drillableObj.GetComponent<PrefabIdentifier>());
-                Object.Destroy(drillableObj.GetComponent<LargeWorldEntity>());
-                Object.Destroy(drillableObj.GetComponent<ResourceTracker>());
-                Object.Destroy(drillableObj.GetComponent<EntityTag>());
-                
-                drillableObj.SetActive(false);
-            }
-            else
-            {
-                Plugin.Logger.LogError($"Failed loading the drillable {matrix.Drillable}");
-            }
+            //make new instance copy to keep
+            drillableObj = Object.Instantiate(drillableObj, prefab.transform);
+            drillableObj.SetActive(false);
+
+            Drillable drillable = drillableObj.GetComponent<Drillable>();
+            drillable.deleteWhenDrilled = false;
+
+            Object.Destroy(drillableObj.GetComponent<PrefabIdentifier>());
+            Object.Destroy(drillableObj.GetComponent<LargeWorldEntity>());
+            Object.Destroy(drillableObj.GetComponent<ResourceTracker>());
+            Object.Destroy(drillableObj.GetComponent<EntityTag>());
+
+            synthesizer.DrillableHandle.Drillables.Add(drillable);
         }
         
         arg.Set(prefab);

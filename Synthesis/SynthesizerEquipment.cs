@@ -14,37 +14,32 @@ public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTr
 {
     private const string SlotId = "SynthesizerMatrix";
     
-    public ChildObjectIdentifier storageRoot;
+    public ChildObjectIdentifier StorageRoot;
     
     [NonSerialized]
     [ProtoMember(1, OverwriteList = true)]
-    public Dictionary<string, string> serializedEquipmentSlots;
+    private Dictionary<string, string> _protoEquipment;
 
-    private Equipment equipment;
+    private Equipment _equipment;
 
-    public bool HasMatrix => equipment.GetItemInSlot(SlotId) != null;
-    public Matrix Matrix
-    {
-        get
-        {
-            InventoryItem item = equipment.GetItemInSlot(SlotId);
-            return item?.item.GetComponent<Matrix>();
-        }
-    }
+    public bool HasMatrix => _equipment.GetItemInSlot(SlotId) != null;
+    public Matrix Matrix => _equipment.GetItemInSlot(SlotId)?.item.GetComponent<Matrix>();
 
-    private void Awake()
+    public void OnAwake(Equipment.OnEquip onEquip, Equipment.OnUnequip onUnequip, IsAllowedToRemove isAllowedToRemove)
     {
         Plugin.Logger.LogInfo("SynthesizerEquipment.Awake");
         
-        equipment = new Equipment(gameObject, storageRoot.transform);
-        equipment.SetLabel(ModLocalization.SynthesizerStorageLabel);
-        equipment.AddSlot(SlotId);
-        equipment.compatibleSlotDelegate = (EquipmentType type, out string slot) =>
+        _equipment = new Equipment(gameObject, StorageRoot.transform);
+        _equipment.SetLabel(ModLocalization.SynthesizerStorageLabel);
+        _equipment.AddSlot(SlotId);
+        _equipment.onEquip += onEquip;
+        _equipment.onUnequip += onUnequip;
+        _equipment.isAllowedToRemove += isAllowedToRemove;
+        _equipment.compatibleSlotDelegate = (EquipmentType type, out string slot) =>
         {
             slot = SlotId;
-            return type == SynthesizerAuthoring.SynthesizerEquipment;
+            return type == SynthesizerAuthoring.SynthesizerEquipmentType;
         };
-        
     }
     
     //Will always run after Awake, and before start.
@@ -53,56 +48,30 @@ public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTr
     {
         Plugin.Logger.LogInfo("SynthesizerEquipment.OnProtoDeserializeObjectTree");
         
-        if (equipment == null)
+        if (_equipment == null)
         {
             Plugin.Logger.LogError("Equipment was null during OnProtoDeserializeObjectTree!!!");
             return;
         }
         
-        if (serializedEquipmentSlots != null)
+        if (_protoEquipment != null)
         {
-            StorageHelper.TransferEquipment(storageRoot.gameObject, serializedEquipmentSlots, equipment);
-            equipment.AddSlot(SlotId);
-            serializedEquipmentSlots = null;
+            StorageHelper.TransferEquipment(StorageRoot.gameObject, _protoEquipment, _equipment);
+            _equipment.AddSlot(SlotId);
+            _protoEquipment = null;
         }
     }
     
     public void OnProtoSerialize(ProtobufSerializer serializer)
     {
-        serializedEquipmentSlots = equipment.SaveEquipment();
-    }
-    
-    public void Sub(Equipment.OnEquip onEquip, Equipment.OnUnequip onUnequip)
-    {
-        equipment.onEquip += onEquip;
-        equipment.onUnequip += onUnequip;
-    }
-    
-    //via GenericHandTrigger
-    [UsedImplicitly]
-    public void OnHandHover(HandTargetEventData eventData)
-    {
-        if (!enabled) return;
-		
-        HandReticle main = HandReticle.main;
-        main.SetIcon(HandReticle.IconType.Hand);
-        main.SetText(HandReticle.TextType.Hand, ModLocalization.SynthesizerOpenStorage, translate: true, GameInput.Button.LeftHand);
-        main.SetText(HandReticle.TextType.HandSubscript, string.Empty, translate: false);
-    }
-
-    //via GenericHandTrigger
-    [UsedImplicitly]
-    public void OnHandClick(HandTargetEventData eventData)
-    {
-        if (!enabled) return;
-
-        PDA pda = Player.main.GetPDA();
-        if (pda.isInUse) return;
-        
-        Inventory.main.SetUsedStorage(equipment);
-        pda.Open(PDATab.Inventory, transform);
+        _protoEquipment = _equipment.SaveEquipment();
     }
     
     public void OnProtoDeserialize(ProtobufSerializer serializer) { }
     public void OnProtoSerializeObjectTree(ProtobufSerializer serializer) { }
+
+    public void SetUsedStorage()
+    {
+        Inventory.main.SetUsedStorage(_equipment);
+    }
 }
