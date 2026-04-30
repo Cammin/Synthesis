@@ -18,28 +18,39 @@ public static class SynthesizerAuthoring
     
     public static readonly EquipmentType SynthesizerEquipmentType = EnumHandler.AddEntry<EquipmentType>("SynthesizerModule");
     
+    public const string StorageRootName = "SynthesizerStorageRoot";
+    
     public static void Register()
     {
         Info = PrefabInfo.WithTechType("Synthesizer");
-
-        
-        
         
         CustomPrefab prefab = new(Info);
 
         prefab
-            .SetUnlock(TechType.PlasteelIngot)
+            .SetUnlock(TechType.TitaniumIngot)
             .WithCompoundTechsForUnlock(new List<TechType> { TechType.AdvancedWiringKit, TechType.Magnetite })
             .WithPdaGroupCategoryAfter(TechGroup.ExteriorModules, TechCategory.ExteriorModule, TechType.PowerTransmitter);
-
-        //prefab.CreateFabricator(out CompressorCraftType);
-        prefab.SetRecipe(Recipe());
+        
+        prefab.SetRecipe(new RecipeData()
+        {
+            craftAmount = 1,
+            Ingredients = new List<Ingredient>()
+            {
+                new Ingredient(TechType.TitaniumIngot, 1),
+                new Ingredient(TechType.AdvancedWiringKit, 1),
+                new Ingredient(TechType.Magnetite, 2)
+            }
+        });
+        
         prefab.SetGameObject(PrefabAsync);
         prefab.Register();
     }
 
+    //this runs when the prefab is first needed. 
     private static IEnumerator PrefabAsync(IOut<GameObject> arg)
     {
+        Plugin.Logger.LogInfo($"SynthesizerAuthoring: PrefabAsync");
+        
         GameObject prefab = new GameObject("Synthesizer");
         
         //make mesh
@@ -57,7 +68,7 @@ public static class SynthesizerAuthoring
         Object.Destroy(pedestal.GetComponent<Collider>());
 
         MaterialUtils.ApplySNShaders(meshRoot, 6);
-        PrefabUtils.AddBasicComponents(prefab, Info.ClassID, Info.TechType, LargeWorldEntity.CellLevel.Medium);
+        PrefabUtils.AddBasicComponents(prefab, Info.ClassID, Info.TechType, LargeWorldEntity.CellLevel.Far);
 
         Constructable constructable = PrefabUtils.AddConstructable(prefab, Info.TechType, ConstructableFlags.Outside | ConstructableFlags.Ground | ConstructableFlags.Rotatable, meshRoot);
         constructable.placeMaxDistance = 8f;
@@ -68,19 +79,6 @@ public static class SynthesizerAuthoring
         ConstructableBounds constructableBounds = prefab.AddComponent<ConstructableBounds>();
         constructableBounds.bounds = new OrientedBounds(meshRootCollider.bounds.center + Vector3.up * 0.05f, Quaternion.identity, meshRootCollider.bounds.size * 0.5f);
         
-        GameObject storageRoot = new GameObject("StorageRoot");
-        storageRoot.transform.SetParent(prefab.transform, false);
-        
-        Synthesizer synthesizer = prefab.AddComponent<Synthesizer>();
-        synthesizer.DrillableHandle = prefab.AddComponent<SynthesizerDrillableHandler>();
-        synthesizer.EquipmentHandle = prefab.AddComponent<SynthesizerEquipment>();
-        synthesizer.Sfx = prefab.AddComponent<SynthesizerAudio>();
-        synthesizer.DrillableHandle.Render = prefab.AddComponent<SynthesizerRendering>();
-        
-        synthesizer.EquipmentHandle.StorageRoot = storageRoot.AddComponent<ChildObjectIdentifier>();
-        synthesizer.EquipmentHandle.StorageRoot.ClassId = "SynthesizerStorage";
-        
-        //Add the sound assets!
         IPrefabRequest anteChamberHandle = PrefabDatabase.GetPrefabForFilenameAsync("WorldEntities/Doodads/Precursor/Precursor_Prison_Interior_Antechamber.prefab");
         yield return anteChamberHandle;
         if (!anteChamberHandle.TryGetPrefab(out var anteChamberObj))
@@ -88,61 +86,51 @@ public static class SynthesizerAuthoring
             Plugin.Logger.LogError($"SynthesizerAuthoring: Failed loading the anteChamber");
             yield break;
         }
-
-        AnteChamber anteChamber = anteChamberObj.GetComponent<AnteChamber>();
-
-        synthesizer.DrillableHandle.Render._EmissiveTex = anteChamber._EmissiveTex;
         
-        GameObject loopCopy = Object.Instantiate(anteChamberObj.transform.Find("scannerTr").gameObject, prefab.transform);
-        synthesizer.Sfx.sfxLocation = loopCopy.transform;
-        synthesizer.Sfx.sfxLoop = loopCopy.GetComponent<FMOD_CustomLoopingEmitter>();
-        synthesizer.Sfx.sfxStart = anteChamber.scanSequenceBeginSound;
-        synthesizer.Sfx.sfxEnd = anteChamber.scanSequenceEndSound;
-
-        //the synthesizer stores one of each drillable inside of it.
-        //chose to do it this way because interacting with the save system in the way where 
-        synthesizer.DrillableHandle.Drillables = new List<Drillable>(MatrixAuthoring.Authors.Count);
         foreach (MatrixAuthor matrix in MatrixAuthoring.Authors)
         {
             IPrefabRequest drillableHandle = PrefabDatabase.GetPrefabAsync(matrix.Drillable.ToString());
             yield return drillableHandle;
-            if (!anteChamberHandle.TryGetPrefab(out var drillableObj))
+            if (!drillableHandle.TryGetPrefab(out var drillableObj))
             {
                 Plugin.Logger.LogError($"SynthesizerAuthoring: Failed loading the drillable {matrix.Drillable}");
                 yield break;
             }
 
-            //make new instance copy to keep
+            //make new instance copy to keep in this prefab
             drillableObj = Object.Instantiate(drillableObj, prefab.transform);
             drillableObj.SetActive(false);
 
             Drillable drillable = drillableObj.GetComponent<Drillable>();
             drillable.deleteWhenDrilled = false;
 
+            //remove a bunch of this because it's part of this prefab's discretion now
             Object.Destroy(drillableObj.GetComponent<PrefabIdentifier>());
             Object.Destroy(drillableObj.GetComponent<LargeWorldEntity>());
             Object.Destroy(drillableObj.GetComponent<ResourceTracker>());
             Object.Destroy(drillableObj.GetComponent<EntityTag>());
-
-            synthesizer.DrillableHandle.Drillables.Add(drillable);
         }
+        
+        AnteChamber anteChamber = anteChamberObj.GetComponent<AnteChamber>();
+        var render = prefab.AddComponent<SynthesizerRendering>();
+        render._EmissiveTex = anteChamber._EmissiveTex;
+        
+        GameObject sfxLoopCopy = Object.Instantiate(anteChamberObj.transform.Find("scannerTr").gameObject, prefab.transform);
+        var sfx = prefab.AddComponent<SynthesizerAudio>();
+        sfx.sfxLocation = sfxLoopCopy.transform;
+        sfx.sfxLoop = sfxLoopCopy.GetComponent<FMOD_CustomLoopingEmitter>();
+        sfx.sfxStart = anteChamber.scanSequenceBeginSound;
+        sfx.sfxEnd = anteChamber.scanSequenceEndSound;
+        
+        GameObject storageRoot = new GameObject(StorageRootName);
+        storageRoot.transform.SetParent(prefab.transform, false);
+        var storageId = storageRoot.AddComponent<ChildObjectIdentifier>();
+        storageId.ClassId = "SynthesizerStorage";
+        
+        prefab.AddComponent<SynthesizerEquipment>(); //depends on StorageRoot
+        prefab.AddComponent<SynthesizerDrillableHandler>(); // depends on Render, Drillables
+        prefab.AddComponent<Synthesizer>(); // depends on DrillableHandle, EquipmentHandle, Sfx
         
         arg.Set(prefab);
     }
-    
-    private static RecipeData Recipe()
-    {
-        return new RecipeData()
-        {
-            craftAmount = 1,
-            Ingredients = new List<Ingredient>()
-            {
-                new Ingredient(TechType.TitaniumIngot, 1),
-                new Ingredient(TechType.AdvancedWiringKit, 1),
-                new Ingredient(TechType.Magnetite, 2)
-            }
-        };
-    }
-
-    
 }

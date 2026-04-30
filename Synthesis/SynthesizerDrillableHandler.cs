@@ -9,16 +9,17 @@ namespace Synthesis;
 /// </summary>
 public class SynthesizerDrillableHandler : MonoBehaviour
 {
-    public SynthesizerRendering Render;
-    public List<Drillable> Drillables;
-    
+    private SynthesizerRendering _render;
     private Dictionary<TechType, Drillable> _drillablesDict;
     private Drillable _drillable;
 
     private void Awake()
     {
-        _drillablesDict = new Dictionary<TechType, Drillable>(Drillables.Count);
-        foreach (Drillable element in Drillables)
+        _render = GetComponent<SynthesizerRendering>();
+        
+        var drillables = GetComponentsInChildren<Drillable>(true);
+        _drillablesDict = new Dictionary<TechType, Drillable>(drillables.Length);
+        foreach (Drillable element in drillables)
         {
             _drillablesDict.Add(element.GetDominantResourceType(), element);
         }
@@ -58,7 +59,7 @@ public class SynthesizerDrillableHandler : MonoBehaviour
         _drillable = newDrillable;
         _drillable.onDrilled += sub;
         
-        Render.CacheNew(_drillable);
+        _render.CacheNew(_drillable);
         UpdateDrillableVisuals(0);
     }
 
@@ -102,6 +103,6 @@ public class SynthesizerDrillableHandler : MonoBehaviour
     
     public void UpdateDrillableVisuals(float progress)
     {
-        Render.UpdateDrillableVisuals(_drillable.transform.position, progress);
+        _render.UpdateDrillableVisuals(_drillable.transform.position, progress);
     }
 }

@@ -6,23 +6,27 @@ using UnityEngine;
 namespace Synthesis;
 
 [ProtoContract]
-public class Synthesizer : MonoBehaviour, IObstacle
+public class Synthesizer : MonoBehaviour, IObstacle, IHandTarget
 {
-	public SynthesizerDrillableHandler DrillableHandle;
-	public SynthesizerEquipment EquipmentHandle;
-	public SynthesizerAudio Sfx;
-	
 	[NonSerialized]
-	[ProtoMember(2)]
+	[ProtoMember(1)]
 	public float timeBegin = -1f;
 
 	[NonSerialized]
-	[ProtoMember(3)]
+	[ProtoMember(2)]
 	public bool isSynthesizing;
+	
+	private SynthesizerDrillableHandler _drillableHandle;
+	private SynthesizerEquipment _equipmentHandle;
+	private SynthesizerAudio _sfx;
 
 	private void Awake()
 	{
-		EquipmentHandle.OnAwake(OnMatrixAdded, OnMatrixRemoved, IsAllowedToRemove);
+		_drillableHandle = GetComponent<SynthesizerDrillableHandler>();
+		_equipmentHandle = GetComponent<SynthesizerEquipment>();
+		_sfx = GetComponent<SynthesizerAudio>();
+		
+		_equipmentHandle.OnAwake(OnMatrixAdded, OnMatrixRemoved, IsAllowedToRemove);
 	}
 	
 	private void Start()
@@ -32,7 +36,7 @@ public class Synthesizer : MonoBehaviour, IObstacle
 		//- being made:			 isSynthesizing && HasMatrix	Set drillable! set minable NO! Set Sfx loop
 		//- drillable exists:	!isSynthesizing && HasMatrix	Set drillable! set minable YES! (it is already like this, so no need to set) 
 		
-		Matrix matrix = EquipmentHandle.Matrix;
+		Matrix matrix = _equipmentHandle.Matrix;
 		if (!matrix)
 		{
 			//there's no possible scenario where we should be synthesizing and also having no matrix
@@ -43,12 +47,12 @@ public class Synthesizer : MonoBehaviour, IObstacle
 			return;
 		}
 		
-		DrillableHandle.SetDrillable(matrix.Drillable, OnCompletelyDrilled);
+		_drillableHandle.SetDrillable(matrix.Drillable, OnCompletelyDrilled);
 
 		if (isSynthesizing)
 		{
-			DrillableHandle.SetDrillableMinable(false);
-			Sfx.PlayLoop();
+			_drillableHandle.SetDrillableMinable(false);
+			_sfx.PlayLoop();
 		}
 	}
 
@@ -65,14 +69,14 @@ public class Synthesizer : MonoBehaviour, IObstacle
 	{
 		Plugin.Logger.LogInfo($"OnMatrixAdded {item.techType}");
 		
-		DrillableHandle.SetDrillable(item.techType, OnCompletelyDrilled);
+		_drillableHandle.SetDrillable(item.techType, OnCompletelyDrilled);
 		BeginSynthesis(0);
 	}
 	private void OnMatrixRemoved(string slot, InventoryItem item)
 	{
 		Plugin.Logger.LogInfo($"OnMatrixRemoved {item.techType}");
 		
-		DrillableHandle.ClearDrillable(OnCompletelyDrilled);
+		_drillableHandle.ClearDrillable(OnCompletelyDrilled);
 		OnSynthesisInterrupted();
 	}
 	
@@ -92,13 +96,13 @@ public class Synthesizer : MonoBehaviour, IObstacle
 	
 	public void OnSynthesisBegin()
 	{
-		DrillableHandle.RestoreDrillable();
-		DrillableHandle.SetDrillableMinable(false);
+		_drillableHandle.RestoreDrillable();
+		_drillableHandle.SetDrillableMinable(false);
 		
 		UpdateDrillableProgress();
 		
-		Sfx.PlayStart();
-		Sfx.PlayLoop();
+		_sfx.PlayStart();
+		_sfx.PlayLoop();
 	}
 
 	private void UpdateDrillableProgress()
@@ -110,7 +114,7 @@ public class Synthesizer : MonoBehaviour, IObstacle
 			progress = Mathf.Clamp01(timePassed / 5);
 		}
 		
-		DrillableHandle.UpdateDrillableVisuals(progress);
+		_drillableHandle.UpdateDrillableVisuals(progress);
 		
 		if (isSynthesizing && progress >= 1f)
 		{
@@ -121,20 +125,20 @@ public class Synthesizer : MonoBehaviour, IObstacle
 	public void OnSynthesisComplete()
 	{
 		isSynthesizing = false;
-		DrillableHandle.SetDrillableMinable(true);
+		_drillableHandle.SetDrillableMinable(true);
 		
 		UpdateDrillableProgress();
 		
-		Sfx.StopLoop();
-		Sfx.PlayEnd();
+		_sfx.StopLoop();
+		_sfx.PlayEnd();
 	}
 	
 	public void OnSynthesisInterrupted()
 	{
 		isSynthesizing = false;
 		
-		Sfx.StopLoop();
-		Sfx.PlayEnd();
+		_sfx.StopLoop();
+		_sfx.PlayEnd();
 	}
 	
 	private bool IsAllowedToRemove(Pickupable pickupable, bool verbose)
@@ -157,7 +161,7 @@ public class Synthesizer : MonoBehaviour, IObstacle
 
 	public bool CanDeconstruct(out string reason)
 	{
-		if (EquipmentHandle.HasMatrix)
+		if (_equipmentHandle.HasMatrix)
 		{
 			reason = Language.main.Get(ModLocalization.SynthesizerDeconstructNotEmptyError);
 			return false;
@@ -170,6 +174,18 @@ public class Synthesizer : MonoBehaviour, IObstacle
 	[UsedImplicitly]
 	public void OnHandHover(HandTargetEventData eventData)
 	{
+		
+	}
+
+	//via GenericHandTrigger
+	[UsedImplicitly]
+	public void OnHandClick(HandTargetEventData eventData)
+	{
+		
+	}
+
+	public void OnHandHover(GUIHand hand)
+	{
 		if (!enabled) return;
 		
 		HandReticle main = HandReticle.main;
@@ -178,16 +194,14 @@ public class Synthesizer : MonoBehaviour, IObstacle
 		main.SetText(HandReticle.TextType.HandSubscript, string.Empty, translate: false);
 	}
 
-	//via GenericHandTrigger
-	[UsedImplicitly]
-	public void OnHandClick(HandTargetEventData eventData)
+	public void OnHandClick(GUIHand hand)
 	{
 		if (!enabled) return;
 
 		PDA pda = Player.main.GetPDA();
 		if (pda.isInUse) return;
         
-		EquipmentHandle.SetUsedStorage();
+		_equipmentHandle.SetUsedStorage();
 		pda.Open(PDATab.Inventory, transform);
 	}
 }

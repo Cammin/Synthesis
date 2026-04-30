@@ -14,12 +14,11 @@ public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTr
 {
     private const string SlotId = "SynthesizerMatrix";
     
-    public ChildObjectIdentifier StorageRoot;
-    
     [NonSerialized]
     [ProtoMember(1, OverwriteList = true)]
     private Dictionary<string, string> _protoEquipment;
 
+    private ChildObjectIdentifier _storageRoot;
     private Equipment _equipment;
 
     public bool HasMatrix => _equipment.GetItemInSlot(SlotId) != null;
@@ -28,8 +27,9 @@ public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTr
     public void OnAwake(Equipment.OnEquip onEquip, Equipment.OnUnequip onUnequip, IsAllowedToRemove isAllowedToRemove)
     {
         Plugin.Logger.LogInfo("SynthesizerEquipment.Awake");
+        _storageRoot = transform.Find(SynthesizerAuthoring.StorageRootName).GetComponent<ChildObjectIdentifier>();
         
-        _equipment = new Equipment(gameObject, StorageRoot.transform);
+        _equipment = new Equipment(gameObject, _storageRoot.transform);
         _equipment.SetLabel(ModLocalization.SynthesizerStorageLabel);
         _equipment.AddSlot(SlotId);
         _equipment.onEquip += onEquip;
@@ -56,7 +56,7 @@ public class SynthesizerEquipment : MonoBehaviour, IProtoEventListener, IProtoTr
         
         if (_protoEquipment != null)
         {
-            StorageHelper.TransferEquipment(StorageRoot.gameObject, _protoEquipment, _equipment);
+            StorageHelper.TransferEquipment(_storageRoot.gameObject, _protoEquipment, _equipment);
             _equipment.AddSlot(SlotId);
             _protoEquipment = null;
         }
