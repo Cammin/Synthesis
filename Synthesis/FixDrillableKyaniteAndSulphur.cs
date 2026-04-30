@@ -4,7 +4,7 @@ using UWE;
 namespace Synthesis;
 
 /// <summary>
-/// The EntTechData doesn't have entries for a couple drillable prefabs, so we're bringing it back so they can be spawned with console commands
+/// The EntTechData doesn't have entries for a couple drillable prefabs, so we're bringing it back so they can be spawned from CraftData
 /// </summary>
 [HarmonyPatch(typeof(CraftData))]
 public class FixDrillableKyaniteAndSulphur
