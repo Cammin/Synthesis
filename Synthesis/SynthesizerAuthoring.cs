@@ -105,7 +105,8 @@ public static class SynthesizerAuthoring
             Plugin.Logger.LogError($"Failed loading the anteChamber");
         }
 
-        //the synthesizer stores one of each drillable inside of it
+        //the synthesizer stores one of each drillable inside of it.
+        //chose to do it this way because interacting with the save system in the way where 
         foreach (MatrixAuthor matrix in MatrixAuthoring.Authors)
         {
             IPrefabRequest drillableHandle = PrefabDatabase.GetPrefabAsync(matrix.Drillable.ToString());
@@ -117,12 +118,13 @@ public static class SynthesizerAuthoring
 
                 Drillable drillable = drillableObj.GetComponent<Drillable>();
                 drillable.deleteWhenDrilled = false;
-
-                //ensure this is good
+                
                 Object.Destroy(drillableObj.GetComponent<PrefabIdentifier>());
                 Object.Destroy(drillableObj.GetComponent<LargeWorldEntity>());
                 Object.Destroy(drillableObj.GetComponent<ResourceTracker>());
                 Object.Destroy(drillableObj.GetComponent<EntityTag>());
+                
+                drillableObj.SetActive(false);
             }
             else
             {

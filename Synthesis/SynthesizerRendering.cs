@@ -1,8 +1,13 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace Synthesis;
 
+/// <summary>
+/// Responsible for only vfx/shaders.
+/// When we setup a new drillable, destroy the mats of the old one and cache the new.
+/// </summary>
 public class SynthesizerRendering : MonoBehaviour
 {
     public Texture2D _EmissiveTex;
@@ -10,19 +15,29 @@ public class SynthesizerRendering : MonoBehaviour
     private List<Renderer> renderers;
     private List<Material> materials;
     private MaterialPropertyBlock block;
-    
-    private void Start()
+
+    private void Awake()
     {
         block = new MaterialPropertyBlock();
     }
-
-    public void CacheMaterials(Component obj)
+    
+    private void OnDestroy()
     {
+        TryDestroyMaterials();
+    }
+
+    public void CacheNew(Component obj)
+    {
+        TryDestroyMaterials();
+
         renderers = new List<Renderer>(obj.GetComponentsInChildren<Renderer>());
+        materials = new List<Material>();
         foreach (Renderer renderer in renderers)
         {
-            materials = new List<Material>(renderer.materials);
-            foreach (Material mat in materials)
+            var mats = renderer.materials;
+            materials.AddRange(mats);
+            
+            foreach (Material mat in mats)
             {
                 mat.EnableKeyword("FX_BUILDING");
                 mat.SetTexture(ShaderPropertyID._EmissiveTex, _EmissiveTex);
@@ -35,6 +50,7 @@ public class SynthesizerRendering : MonoBehaviour
                 mat.SetFloat(ShaderPropertyID._MyCullVariable, 0f);
             }
         }
+        UpdateDrillableVisuals(obj.transform.position, 0);
     }
     
     public void UpdateDrillableVisuals(Vector3 pos, float progress)
@@ -51,17 +67,14 @@ public class SynthesizerRendering : MonoBehaviour
             renderer.SetPropertyBlock(block);
         }
     }
-    
-    public void DestroyMaterials()
+
+    private void TryDestroyMaterials()
     {
         if (materials == null) return;
         
         foreach (Material material in materials)
         {
-            if (material != null)
-            {
-                Destroy(material);
-            }
+            Destroy(material);
         }
         materials.Clear();
     }

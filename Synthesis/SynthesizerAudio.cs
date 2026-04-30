@@ -2,6 +2,9 @@ using UnityEngine;
 
 namespace Synthesis;
 
+/// <summary>
+/// Responsible for only audio
+/// </summary>
 public class SynthesizerAudio : MonoBehaviour
 {
     public FMODAsset sfxStart;
