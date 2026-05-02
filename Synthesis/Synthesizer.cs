@@ -169,9 +169,7 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 		float progress = 1f;
 		if (IsSynthesizing)
 		{
-			float duration = _matrix.SynthesisDuration;
-			float timePassed = DayNightCycle.main.timePassedAsFloat - TimeBegin;
-			progress = Mathf.Clamp01(timePassed / duration);
+			progress = GetProgress();
 		}
 		
 		_drillableHandle.UpdateDrillableVisuals(progress);
@@ -192,10 +190,10 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 		//removing the matrix clears the drillable.
 		//block removing the matrix if there is a completed Drillable on the pedestal.
 		//so there's no disappointment if the matrix is removed.
-		if (!IsSynthesizing)
+		/*if (!IsSynthesizing)
 		{
 			return false;
-		}
+		}*/
 		return true;
 	}
 	
@@ -242,6 +240,19 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 		main.SetIcon(HandReticle.IconType.Hand);
 		main.SetText(HandReticle.TextType.Hand, ModLocalization.SynthesizerHand, translate: true, GameInput.Button.LeftHand);
 		main.SetText(HandReticle.TextType.HandSubscript, GetSubscript(), translate: true);
+
+		if (IsSynthesizing)
+		{
+			main.SetProgress(GetProgress());
+			main.SetIcon(HandReticle.IconType.Progress, 1.5f);
+		}
+	}
+
+	private float GetProgress()
+	{
+		float duration = _matrix.SynthesisDuration;
+		float timePassed = DayNightCycle.main.timePassedAsFloat - TimeBegin;
+		return Mathf.Clamp01(timePassed / duration);
 	}
 
 	private string GetSubscript()

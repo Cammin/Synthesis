@@ -74,7 +74,7 @@ public static class SynthesizerAuthoring
         Object.Destroy(pedestal.GetComponent<Collider>());
 
         MaterialUtils.ApplySNShaders(meshRoot, 6);
-        PrefabUtils.AddBasicComponents(prefab, Info.ClassID, Info.TechType, LargeWorldEntity.CellLevel.Near);
+        PrefabUtils.AddBasicComponents(prefab, Info.ClassID, Info.TechType, LargeWorldEntity.CellLevel.Medium);
 
         Constructable constructable = PrefabUtils.AddConstructable(prefab, Info.TechType, ConstructableFlags.Outside | ConstructableFlags.Ground | ConstructableFlags.Rotatable, meshRoot);
         constructable.placeMaxDistance = 8f;

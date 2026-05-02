@@ -24,11 +24,11 @@ public class SynthesizerAudio : MonoBehaviour
 
     public void PlayStart()
     {
-        Utils.PlayFMODAsset(sfxStart, sfxLocation);
+        //Utils.PlayFMODAsset(sfxStart, sfxLocation);
     }
 
     public void PlayEnd()
     {
-        Utils.PlayFMODAsset(sfxEnd, sfxLocation);
+        //Utils.PlayFMODAsset(sfxEnd, sfxLocation);
     }
 }
