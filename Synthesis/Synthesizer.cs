@@ -1,55 +1,92 @@
 using System;
+using System.Collections.Generic;
 using JetBrains.Annotations;
-using ProtoBuf;
 using UnityEngine;
 
 namespace Synthesis;
 
-[ProtoContract]
 public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 {
-	[NonSerialized]
-	[ProtoMember(1)]
-	public float timeBegin = -1f;
-
-	[NonSerialized]
-	[ProtoMember(2)]
-	public bool isSynthesizing;
+	private const string SlotId = SynthesizerAuthoring.EquipmentSlot1Name;
 	
-	private SynthesizerDrillableHandler _drillableHandle;
-	private SynthesizerEquipment _equipmentHandle;
-	private SynthesizerAudio _sfx;
+	public float TimeBegin
+	{
+		get => _data.TimeBegin;
+		set => _data.TimeBegin = value;
+	}
+	public bool IsSynthesizing
+	{
+		get => _data.IsSynthesizing;
+		set => _data.IsSynthesizing = value;
+	}
+	public Dictionary<string, string> SerializedEquipment
+	{
+		get => _data.SerializedEquipment;
+		set => _data.SerializedEquipment = value;
+	}
 
+	private SynthesizerInstanceData _data;
+	private SynthesizerDrillableHandler _drillableHandle;
+	private SynthesizerAudio _sfx;
+	private PrefabIdentifier _id;
+	
+	private string _idString;
+	private Equipment _equipment;
+	private Matrix _matrix;
+	private bool _isInitializingEquipment;
+	
 	private void Awake()
 	{
 		_drillableHandle = GetComponent<SynthesizerDrillableHandler>();
-		_equipmentHandle = GetComponent<SynthesizerEquipment>();
 		_sfx = GetComponent<SynthesizerAudio>();
-		
-		_equipmentHandle.OnAwake(OnMatrixAdded, OnMatrixRemoved, IsAllowedToRemove);
+		_id = GetComponent<PrefabIdentifier>();
 	}
 	
 	private void Start()
 	{
+		_idString = _id.Id;
+		_data = SynthesizerSaveData.Instance.GetOrAddNew(_idString);
+		ChildObjectIdentifier storageRoot = transform.Find(SynthesizerAuthoring.StorageRootName).GetComponent<ChildObjectIdentifier>();
+		
+		_isInitializingEquipment = true;
+		_equipment = new Equipment(gameObject, storageRoot.transform);
+		_equipment.SetLabel(ModLocalization.SynthesizerStorageLabel);
+		_equipment.onEquip += OnMatrixAdded;
+		_equipment.onUnequip += OnMatrixRemoved;
+		_equipment.isAllowedToRemove += IsAllowedToRemove;
+		_equipment.compatibleSlotDelegate = (EquipmentType type, out string slot) =>
+		{
+			slot = SlotId;
+			return type == SynthesizerAuthoring.SynthesizerEquipmentType;
+		};
+		
+		if (SerializedEquipment != null)
+		{
+			StorageHelper.TransferEquipment(storageRoot.gameObject, SerializedEquipment, _equipment);
+		}
+		else
+		{
+			_equipment.AddSlot(SlotId);
+		}
+		_isInitializingEquipment = false;
+		
 		//3 possible scenarios:
-		//- no drillable:		!isSynthesizing && !HasMatrix	return!
-		//- being made:			 isSynthesizing && HasMatrix	Set drillable! set minable NO! Set Sfx loop
+		//- no drillable:	!isSynthesizing && !HasMatrix	return!
+		//- being made:	isSynthesizing && HasMatrix	Set drillable! set minable NO! Set Sfx loop
 		//- drillable exists:	!isSynthesizing && HasMatrix	Set drillable! set minable YES! (it is already like this, so no need to set) 
 		
-		Matrix matrix = _equipmentHandle.Matrix;
-		if (!matrix)
+		if (!_matrix)
 		{
 			//there's no possible scenario where we should be synthesizing and also having no matrix
-			if (isSynthesizing)
+			if (IsSynthesizing)
 			{
-				Plugin.Logger.LogInfo($"Panic!!! We are synthesizing and also having no matrix!");
+				Plugin.Logger.LogError($"Should never happen!!! We are synthesizing and also having no matrix!");
 			}
 			return;
 		}
 		
-		_drillableHandle.SetDrillable(matrix, OnCompletelyDrilled);
-
-		if (isSynthesizing)
+		//init the state if we were currently in-progress
+		if (IsSynthesizing)
 		{
 			_drillableHandle.SetDrillableMinable(false);
 			_sfx.PlayLoop();
@@ -58,28 +95,39 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 
 	private void Update()
 	{
-		if (isSynthesizing)
+		if (IsSynthesizing)
 		{
 			UpdateDrillableProgress();
 		}
 	}
 	
-	// Will also potentially call when loading proto, which is useful
 	private void OnMatrixAdded(string slot, InventoryItem item)
 	{
-		Matrix newMatrix = _equipmentHandle.Matrix;
-
-		Plugin.Logger.LogInfo($"OnMatrixAdded {item.techType} => {newMatrix.Resource} {newMatrix.Drillable}");
+		_matrix = item.item.GetComponent<Matrix>();
+		_drillableHandle.SetDrillable(_matrix, OnCompletelyDrilled);
+		UpdateDrillableProgress();
 		
-		_drillableHandle.SetDrillable(newMatrix, OnCompletelyDrilled);
-		BeginSynthesis(0);
+		if (!_isInitializingEquipment)
+		{
+			_data.SerializedEquipment = _equipment.SaveEquipment();
+			BeginSynthesis(0);
+		}
 	}
 	private void OnMatrixRemoved(string slot, InventoryItem item)
 	{
-		Plugin.Logger.LogInfo($"OnMatrixRemoved {item.techType}");
+		if (item.item.isDestroyed)
+		{
+			return;
+		}
 		
+		_matrix = null;
+		_data.SerializedEquipment = null;
+		
+		//interrupt synthesis!
 		_drillableHandle.ClearDrillable(OnCompletelyDrilled);
-		OnSynthesisInterrupted();
+		IsSynthesizing = false;
+		_sfx.StopLoop();
+		_sfx.PlayEnd();
 	}
 	
 	public void OnCompletelyDrilled(Drillable drillable)
@@ -89,17 +137,17 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 
 	private void BeginSynthesis(float delay)
 	{
-		if (isSynthesizing) return;
+		if (IsSynthesizing) return;
 		
-		isSynthesizing = true;
-		timeBegin = DayNightCycle.main.timePassedAsFloat + delay;
+		IsSynthesizing = true;
+		TimeBegin = DayNightCycle.main.timePassedAsFloat + delay;
 		Invoke(nameof(OnSynthesisBegin), delay);
 	}
 	
 	public void OnSynthesisBegin()
 	{
 		//if the synthesis was interrupted
-		if (!isSynthesizing) return;
+		if (!IsSynthesizing) return;
 		
 		_drillableHandle.RestoreDrillable();
 		_drillableHandle.SetDrillableMinable(false);
@@ -112,56 +160,41 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 
 	private void UpdateDrillableProgress()
 	{
-		if (isSynthesizing && _equipmentHandle.Matrix == null)
+		if (IsSynthesizing && _matrix == null)
 		{
 			Plugin.Logger.LogError("UpdateDrillableProgress Matrix is null!");
 			return;
 		}
 		
 		float progress = 1f;
-		if (isSynthesizing)
+		if (IsSynthesizing)
 		{
-			float duration = _equipmentHandle.Matrix.SynthesisDuration;
-			float timePassed = DayNightCycle.main.timePassedAsFloat - timeBegin;
+			float duration = _matrix.SynthesisDuration;
+			float timePassed = DayNightCycle.main.timePassedAsFloat - TimeBegin;
 			progress = Mathf.Clamp01(timePassed / duration);
 		}
 		
 		_drillableHandle.UpdateDrillableVisuals(progress);
 		
-		if (isSynthesizing && progress >= 1f)
+		//is it complete?
+		if (IsSynthesizing && progress >= 1f)
 		{
-			OnSynthesisComplete();
+			IsSynthesizing = false;
+			_drillableHandle.SetDrillableMinable(true);
+		
+			_sfx.StopLoop();
+			_sfx.PlayEnd();
 		}
-	}
-	
-	public void OnSynthesisComplete()
-	{
-		isSynthesizing = false;
-		_drillableHandle.SetDrillableMinable(true);
-		
-		UpdateDrillableProgress();
-		
-		_sfx.StopLoop();
-		_sfx.PlayEnd();
-	}
-	
-	public void OnSynthesisInterrupted()
-	{
-		isSynthesizing = false;
-		
-		_sfx.StopLoop();
-		_sfx.PlayEnd();
 	}
 	
 	private bool IsAllowedToRemove(Pickupable pickupable, bool verbose)
 	{
 		//removing the matrix clears the drillable.
-		//block removing the matrix if there is a completed drillable on the pedestal.
+		//block removing the matrix if there is a completed Drillable on the pedestal.
 		//so there's no disappointment if the matrix is removed.
-		//if (!isSynthesizing)
+		if (!IsSynthesizing)
 		{
-			//ErrorMessage.AddMessage(Language.main.Get(ModLocalization.SynthesizerEquipmentCantRemove));
-			//return false;
+			return false;
 		}
 		return true;
 	}
@@ -173,7 +206,7 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 
 	public bool CanDeconstruct(out string reason)
 	{
-		if (_equipmentHandle.Matrix != null)
+		if (_matrix != null)
 		{
 			reason = Language.main.Get(ModLocalization.SynthesizerDeconstructNotEmptyError);
 			return false;
@@ -182,27 +215,23 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 		return true;
 	}
 
+	private bool _isConstructed;
+	
 	public void OnConstructedChanged(bool constructed)
 	{
-		//remove the drillable upon attempting a deconstruct
-		/*if (!constructed)
+		//puts true/false whether it's constructed when pre-existing in the world
+		//puts false when initially building
+		//puts false when initially deconstructing
+		//puts true when completed building
+		
+		_isConstructed = constructed;
+	}
+	private void OnDestroy()
+	{
+		if (!_isConstructed)
 		{
-			_drillableHandle.ClearDrillable(OnCompletelyDrilled);
-		}*/
-	}
-
-	//via GenericHandTrigger
-	[UsedImplicitly]
-	public void OnHandHover(HandTargetEventData eventData)
-	{
-		
-	}
-
-	//via GenericHandTrigger
-	[UsedImplicitly]
-	public void OnHandClick(HandTargetEventData eventData)
-	{
-		
+			SynthesizerSaveData.Instance.DeleteInstance(_idString);
+		}
 	}
 
 	public void OnHandHover(GUIHand hand)
@@ -211,8 +240,23 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 		
 		HandReticle main = HandReticle.main;
 		main.SetIcon(HandReticle.IconType.Hand);
-		main.SetText(HandReticle.TextType.Hand, ModLocalization.SynthesizerOpenStorage, translate: true, GameInput.Button.LeftHand);
-		main.SetText(HandReticle.TextType.HandSubscript, string.Empty, translate: false);
+		main.SetText(HandReticle.TextType.Hand, ModLocalization.SynthesizerHand, translate: true, GameInput.Button.LeftHand);
+		main.SetText(HandReticle.TextType.HandSubscript, GetSubscript(), translate: true);
+	}
+
+	private string GetSubscript()
+	{
+		if (!_matrix)
+		{
+			return ModLocalization.SynthesizerHandSubscriptEmpty;
+		}
+
+		if (!IsSynthesizing)
+		{
+			return ModLocalization.SynthesizerHandSubscriptDestroyDrillable;
+		}
+
+		return string.Empty;
 	}
 
 	public void OnHandClick(GUIHand hand)
@@ -222,7 +266,7 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 		PDA pda = Player.main.GetPDA();
 		if (pda.isInUse) return;
         
-		_equipmentHandle.SetUsedStorage();
+		Inventory.main.SetUsedStorage(_equipment);
 		pda.Open(PDATab.Inventory, transform);
 	}
 }

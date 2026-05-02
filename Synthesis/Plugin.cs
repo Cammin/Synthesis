@@ -39,12 +39,14 @@ public class Plugin : BaseUnityPlugin
         Logger = base.Logger;
         
         Harmony.CreateAndPatchAll(Assembly, $"{PluginGuid}");
-        Logger.LogInfo($"Plugin {PluginGuid} is loaded!");
 
-        //FixSpawnables();
+        SynthesizerSaveData.Register();
+
         CompressorAuthoring.Register();
         MatrixAuthoring.Register();
         SynthesizerAuthoring.Register();
+        
+        Logger.LogInfo($"Plugin {PluginGuid} is loaded!");
     }
 
     

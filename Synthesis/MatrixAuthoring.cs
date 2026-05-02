@@ -79,7 +79,7 @@ public abstract class MatrixAuthor
     public abstract TechType Resource { get; }
     public abstract TechType Drillable { get; }
     public virtual int CraftAmount => 100;
-    public virtual float SynthesizeDuration => 10;
+    public virtual float SynthesizeDuration => 30;
     public virtual float ShaderYMin => -0.5f;
     public virtual float ShaderYMax => 4f;
     

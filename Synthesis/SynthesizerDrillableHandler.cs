@@ -18,14 +18,16 @@ public class SynthesizerDrillableHandler : MonoBehaviour
         _render = GetComponent<SynthesizerRendering>();
         
         var drillables = GetComponentsInChildren<Drillable>(true);
-        
         _drillablesDict = new Dictionary<TechType, Drillable>(drillables.Length);
         foreach (Drillable drillable in drillables)
         {
             var resource = drillable.GetDominantResourceType();
             var drillableType = MatrixAuthoring.ResourceToDrillable(resource);
-            
-            if (drillableType == TechType.None) continue;
+            if (drillableType == TechType.None)
+            {
+                Plugin.Logger.LogError($"Tried registering a drillable as none?");
+                continue;
+            }
             
             _drillablesDict.Add(drillableType, drillable);
         }
@@ -67,7 +69,6 @@ public class SynthesizerDrillableHandler : MonoBehaviour
         _drillable.onDrilled += sub;
         
         _render.CacheNew(_drillable, matrix.ShaderYMin, matrix.ShaderYMax);
-        UpdateDrillableVisuals(0);
     }
 
     public void ClearDrillable(Drillable.OnDrilled unsubThis)

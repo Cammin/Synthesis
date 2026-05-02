@@ -56,9 +56,8 @@ public static class SynthesizerAuthoring
     //this runs when the prefab is first needed. 
     private static IEnumerator PrefabAsync(IOut<GameObject> arg)
     {
-        Plugin.Logger.LogInfo($"SynthesizerAuthoring: PrefabAsync");
-        
         GameObject prefab = new GameObject("Synthesizer");
+        prefab.SetActive(false); //this is critical
         
         //make mesh
         GameObject meshRoot = new GameObject("mesh");
@@ -108,6 +107,7 @@ public static class SynthesizerAuthoring
 
             //make new instance copy to keep in this prefab
             drillableObj = Object.Instantiate(drillableObj, prefab.transform);
+            drillableObj.name = matrix.Drillable.ToString();
             drillableObj.SetActive(false);
             drillableObj.transform.localPosition = Vector3.up * 0.3f;
             
@@ -128,6 +128,7 @@ public static class SynthesizerAuthoring
         render._EmissiveTex = anteChamber._EmissiveTex;
         
         GameObject sfxLoopCopy = Object.Instantiate(anteChamberObj.transform.Find("scannerTr").gameObject, prefab.transform);
+        sfxLoopCopy.name = "SfxLocation";
         sfxLoopCopy.transform.localPosition = Vector3.zero;
         var sfx = prefab.AddComponent<SynthesizerAudio>();
         sfx.sfxLocation = sfxLoopCopy.transform;
@@ -140,9 +141,8 @@ public static class SynthesizerAuthoring
         var storageId = storageRoot.AddComponent<ChildObjectIdentifier>();
         storageId.ClassId = "SynthesizerStorage";
         
-        prefab.AddComponent<SynthesizerEquipment>(); //depends on StorageRoot
         prefab.AddComponent<SynthesizerDrillableHandler>(); // depends on Render, Drillables
-        prefab.AddComponent<Synthesizer>(); // depends on DrillableHandle, EquipmentHandle, Sfx
+        prefab.AddComponent<Synthesizer>(); // depends on DrillableHandle, Sfx
         
         arg.Set(prefab);
     }

@@ -41,7 +41,6 @@ public class Compressor : GhostCrafter
 
     public override void OnOpenedChanged(bool opened)
     {
-        Plugin.Logger.LogInfo("[Compressor] OnOpenedChanged: " + opened);
         base.OnOpenedChanged(opened);
     }
 
