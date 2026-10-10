@@ -48,7 +48,6 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 		_data = SynthesizerSaveData.Instance.GetOrAddNew(_idString);
 		ChildObjectIdentifier storageRoot = transform.Find(SynthesizerAuthoring.StorageRootName).GetComponent<ChildObjectIdentifier>();
 		
-		_isInitializingEquipment = true;
 		_equipment = new Equipment(gameObject, storageRoot.transform);
 		_equipment.SetLabel(ModLocalization.SynthesizerStorageLabel);
 		_equipment.onEquip += OnMatrixAdded;
@@ -60,36 +59,24 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 			return type == SynthesizerAuthoring.SynthesizerEquipmentType;
 		};
 		
+		//if we have a matrix, load it up
 		if (SerializedEquipment != null)
 		{
+			_isInitializingEquipment = true;
+			//TransferEquipment will call the OnMatrixAdded and sets the drillable
 			StorageHelper.TransferEquipment(storageRoot.gameObject, SerializedEquipment, _equipment);
+			_isInitializingEquipment = false;
+			
+			if (IsSynthesizing)
+			{
+				//we are currently in progress, and we have a matrix
+				_drillableHandle.SetDrillableMinable(false);
+				_sfx.PlayLoop();
+			}
 		}
 		else
 		{
 			_equipment.AddSlot(SlotId);
-		}
-		_isInitializingEquipment = false;
-		
-		//3 possible scenarios:
-		//- no drillable:	!isSynthesizing && !HasMatrix	return!
-		//- being made:	isSynthesizing && HasMatrix	Set drillable! set minable NO! Set Sfx loop
-		//- drillable exists:	!isSynthesizing && HasMatrix	Set drillable! set minable YES! (it is already like this, so no need to set) 
-		
-		if (!_matrix)
-		{
-			//there's no possible scenario where we should be synthesizing and also having no matrix
-			if (IsSynthesizing)
-			{
-				Plugin.Logger.LogError($"Should never happen!!! We are synthesizing and also having no matrix!");
-			}
-			return;
-		}
-		
-		//init the state if we were currently in-progress
-		if (IsSynthesizing)
-		{
-			_drillableHandle.SetDrillableMinable(false);
-			_sfx.PlayLoop();
 		}
 	}
 
@@ -106,7 +93,7 @@ public class Synthesizer : MonoBehaviour, IConstructable, IHandTarget
 		_matrix = item.item.GetComponent<Matrix>();
 		_drillableHandle.SetDrillable(_matrix, OnCompletelyDrilled);
 		UpdateDrillableProgress();
-		
+
 		if (!_isInitializingEquipment)
 		{
 			_data.SerializedEquipment = _equipment.SaveEquipment();
